@@ -12,8 +12,12 @@ const (
 )
 
 type configuration struct {
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
+	Host          string `yaml:"host"`
+	Port          string `yaml:"port"`
+	RedisHost     string `yaml:"redis_host"`
+	RedisPort     string `yaml:"redis_port"`
+	RedisUsername string `yaml:"redis_username"`
+	RedisPassword string `yaml:"redis_password"`
 }
 
 var Config configuration
