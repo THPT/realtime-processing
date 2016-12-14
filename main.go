@@ -18,7 +18,8 @@ const (
 	topicPageviewLog = "page_view_logs"
 	topicClickLog    = "click_logs"
 
-	userHLL = "userHLL"
+	userHLL           = "userHLL"
+	videoViewCountKey = "video_view"
 )
 
 func main() {
@@ -74,6 +75,7 @@ ConsumerLoop:
 				fmt.Println("Invalid json: ", err)
 			} else {
 				addHLLVisitor(event.Uuid)
+				increaseVideoViewCount(event.VideoId)
 			}
 
 			partitionPageviewOffsetManager.MarkOffset(msg.Offset+1, "metadata")
@@ -104,10 +106,32 @@ func addHLLVisitor(uuid string) {
 	res := redis.Redis.PFAdd(key, uuid)
 	if res != nil && res.Err() != nil {
 		fmt.Println(res.Err())
+		return
 	}
 	if re := redis.Redis.Expire(key, 10*time.Minute); re != nil {
 		if re.Err() != nil {
-			fmt.Println(res.Err())
+			fmt.Println(re.Err())
+		}
+	}
+}
+
+func increaseVideoViewCount(videoId string) {
+	now := time.Now()
+	min := now.Minute()
+	hour := now.Hour()
+	timer := min + hour*60
+	key := videoViewCountKey + "_" + strconv.Itoa(timer)
+
+	if res := redis.Redis.HIncrBy(key, videoId, 1); res != nil {
+		if err := res.Err(); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	if re := redis.Redis.Expire(key, 60*2*time.Minute); re != nil {
+		if re.Err() != nil {
+			fmt.Println(re.Err())
 		}
 	}
 }
