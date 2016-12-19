@@ -6,9 +6,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"realtime-processing/kafka"
+	"realtime-processing/infra"
 	"realtime-processing/model"
-	"realtime-processing/redis"
 	"strconv"
 	"time"
 )
@@ -24,20 +23,23 @@ const (
 
 func main() {
 	//init redis
-	redis.InitRedis()
-	defer redis.CloseRedis()
+	infra.InitRedis()
+	defer infra.CloseRedis()
 
-	partitionTopicOrderConsumer, partitionOrderOffsetManager, err := kafka.Consume(topicOrderLog, 0)
+	//Consume topic order
+	partitionTopicOrderConsumer, partitionOrderOffsetManager, err := infra.Consume(topicOrderLog, 0)
 	if err != nil {
 		panic(err)
 	}
 
-	partitionTopicPageviewConsumer, partitionPageviewOffsetManager, err := kafka.Consume(topicPageviewLog, 0)
+	//Consume topic pageview
+	partitionTopicPageviewConsumer, partitionPageviewOffsetManager, err := infra.Consume(topicPageviewLog, 0)
 	if err != nil {
 		panic(err)
 	}
 
-	partitionTopicClickConsumer, partitionTopicOffsetManager, err := kafka.Consume(topicClickLog, 0)
+	//Consume topic click
+	partitionTopicClickConsumer, partitionTopicOffsetManager, err := infra.Consume(topicClickLog, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -103,12 +105,12 @@ ConsumerLoop:
 func addHLLVisitor(uuid string) {
 	min := time.Now().Minute()
 	key := userHLL + "_" + strconv.Itoa(min)
-	res := redis.Redis.PFAdd(key, uuid)
+	res := infra.Redis.PFAdd(key, uuid)
 	if res != nil && res.Err() != nil {
 		fmt.Println(res.Err())
 		return
 	}
-	if re := redis.Redis.Expire(key, 10*time.Minute); re != nil {
+	if re := infra.Redis.Expire(key, 10*time.Minute); re != nil {
 		if re.Err() != nil {
 			fmt.Println(re.Err())
 		}
@@ -122,14 +124,14 @@ func increaseVideoViewCount(videoId string) {
 	timer := min + hour*60
 	key := videoViewCountKey + "_" + strconv.Itoa(timer)
 
-	if res := redis.Redis.HIncrBy(key, videoId, 1); res != nil {
+	if res := infra.Redis.HIncrBy(key, videoId, 1); res != nil {
 		if err := res.Err(); err != nil {
 			fmt.Println(err)
 			return
 		}
 	}
 
-	if re := redis.Redis.Expire(key, 60*2*time.Minute); re != nil {
+	if re := infra.Redis.Expire(key, 60*2*time.Minute); re != nil {
 		if re.Err() != nil {
 			fmt.Println(re.Err())
 		}

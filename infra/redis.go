@@ -1,10 +1,10 @@
-package redis
+package infra
 
 import (
 	"fmt"
 	"realtime-processing/config"
 
-	"gopkg.in/redis.v3"
+	"gopkg.in/redis.v5"
 )
 
 var Redis *redis.Client
