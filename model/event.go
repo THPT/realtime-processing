@@ -12,6 +12,8 @@ type Event struct {
 	VideoId    string
 	OrderId    int
 	CustomerId int
+	Viewer     int
+	Location   string
 
 	// Kafka encoded
 	encoded []byte

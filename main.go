@@ -19,6 +19,7 @@ const (
 
 	userHLL           = "userHLL"
 	videoViewCountKey = "video_view"
+	locationCountKey  = "location"
 )
 
 func main() {
@@ -78,6 +79,7 @@ ConsumerLoop:
 			} else {
 				addHLLVisitor(event.Uuid)
 				increaseVideoViewCount(event.VideoId)
+				increaseLocationCount(event.Location)
 			}
 
 			partitionPageviewOffsetManager.MarkOffset(msg.Offset+1, "metadata")
@@ -125,6 +127,28 @@ func increaseVideoViewCount(videoId string) {
 	key := videoViewCountKey + "_" + strconv.Itoa(timer)
 
 	if res := infra.Redis.HIncrBy(key, videoId, 1); res != nil {
+		if err := res.Err(); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	if re := infra.Redis.Expire(key, 60*2*time.Minute); re != nil {
+		if re.Err() != nil {
+			fmt.Println(re.Err())
+		}
+	}
+}
+
+func increaseLocationCount(location string) {
+	now := time.Now()
+	min := now.Minute()
+	hour := now.Hour()
+	min = (min / 5) * 5
+	timer := min + hour*60
+	key := locationCountKey + "_" + strconv.Itoa(timer)
+
+	if res := infra.Redis.HIncrBy(key, location, 1); res != nil {
 		if err := res.Err(); err != nil {
 			fmt.Println(err)
 			return
