@@ -144,20 +144,24 @@ func increaseLocationCount(location string) {
 	now := time.Now()
 	min := now.Minute()
 	hour := now.Hour()
-	min = (min / 5) * 5
 	timer := min + hour*60
-	key := locationCountKey + "_" + strconv.Itoa(timer)
-
-	if res := infra.Redis.HIncrBy(key, location, 1); res != nil {
-		if err := res.Err(); err != nil {
-			fmt.Println(err)
-			return
+	for i := 0; i < 6; i++ {
+		t := timer - i
+		if t < 0 {
+			t += 60 * 24
 		}
-	}
+		key := locationCountKey + "_" + strconv.Itoa(t)
+		if res := infra.Redis.HIncrBy(key, location, 1); res != nil {
+			if err := res.Err(); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
 
-	if re := infra.Redis.Expire(key, 60*2*time.Minute); re != nil {
-		if re.Err() != nil {
-			fmt.Println(re.Err())
+		if re := infra.Redis.Expire(key, 60*2*time.Minute); re != nil {
+			if re.Err() != nil {
+				fmt.Println(re.Err())
+			}
 		}
 	}
 }
