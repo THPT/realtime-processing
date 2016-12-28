@@ -10,6 +10,8 @@ import (
 	"realtime-processing/model"
 	"strconv"
 	"time"
+
+	"github.com/ua-parser/uap-go/uaparser"
 )
 
 const (
@@ -18,11 +20,19 @@ const (
 	topicClickLog    = "click_logs"
 
 	userHLL           = "userHLL"
+	deviceMobileHLL   = "deviceMobileHLL"
+	deviceDesktopHLL  = "deviceDesktopHLL"
 	videoViewCountKey = "video_view"
 	locationCountKey  = "location"
 )
 
 func main() {
+
+	parser, err := uaparser.New("./regexes.yaml")
+	if err != nil {
+		log.Println(err)
+	}
+
 	//init redis
 	infra.InitRedis()
 	defer infra.CloseRedis()
@@ -77,6 +87,9 @@ ConsumerLoop:
 			if err != nil {
 				fmt.Println("Invalid json: ", err)
 			} else {
+
+				client := parser.Parse(event.Agent)
+				addHLLDevice(event.Uuid, client.Device.Family)
 				addHLLVisitor(event.Uuid)
 				increaseVideoViewCount(event.VideoId)
 				increaseLocationCount(event.Location)
@@ -107,6 +120,27 @@ ConsumerLoop:
 func addHLLVisitor(uuid string) {
 	min := time.Now().Minute()
 	key := userHLL + "_" + strconv.Itoa(min)
+	res := infra.Redis.PFAdd(key, uuid)
+	if res != nil && res.Err() != nil {
+		fmt.Println(res.Err())
+		return
+	}
+	if re := infra.Redis.Expire(key, 10*time.Minute); re != nil {
+		if re.Err() != nil {
+			fmt.Println(re.Err())
+		}
+	}
+}
+
+func addHLLDevice(uuid string, device string) {
+	min := time.Now().Minute()
+	var key string
+	switch device {
+	case "Other":
+		key = deviceDesktopHLL + "_" + strconv.Itoa(min)
+	default:
+		key = deviceMobileHLL + "_" + strconv.Itoa(min)
+	}
 	res := infra.Redis.PFAdd(key, uuid)
 	if res != nil && res.Err() != nil {
 		fmt.Println(res.Err())
